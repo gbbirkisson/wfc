@@ -38,9 +38,7 @@ where
 
     fn iterate(&mut self) -> Result<bool, WfcError> {
         match self.get_cell_with_lowest_entropy() {
-            Some((_, entropy)) if entropy == 0 => {
-                Err(format!("Got uncollapsable cell"))
-            }
+            Some((_, entropy)) if entropy == 0 => Err(format!("Got uncollapsable cell")),
             Some((id, _)) => {
                 self.collapse_and_propagate(&id, None)?;
                 Ok(false)
