@@ -24,34 +24,38 @@ impl Cell<u32> for SudokuCell {
         }
     }
 
-    fn constrain(&mut self, value: &u32) {
+    fn constrain(&mut self, value: &u32) -> Result<(), String> {
         match self {
-            SudokuCell::Value(_) => return,
+            SudokuCell::Value(v) if v == value => Err(format!(
+                "Tried to constrain a cell with value it already has"
+            )),
+            SudokuCell::Value(_) => Ok(()),
             SudokuCell::Superpositions(s) => {
                 *s = s
                     .iter()
                     .filter(|v| v != &value)
                     .map(|v| v.clone())
                     .collect();
+                Ok(())
             }
         }
     }
 
-    fn collapse(&mut self, value: Option<u32>) -> u32 {
+    fn collapse(&mut self, value: Option<u32>) -> Result<u32, String> {
         let value = match self {
-            SudokuCell::Value(_) => panic!("Called collapse on a collapsed cell"),
+            SudokuCell::Value(_) => return Err("Called collapse on a collapsed cell".to_string()),
             SudokuCell::Superpositions(s) => match value {
                 Some(value) => s
                     .iter()
                     .filter(|v| *v == &value)
                     .next()
-                    .expect("Value to collapse with is not in superposition")
+                    .ok_or_else(|| format!("Value to collapse with is not in superposition"))?
                     .clone(),
                 None => s.choose(&mut rand::thread_rng()).unwrap().clone(),
             },
         };
         *self = Self::Value(value);
-        value
+        Ok(value)
     }
 }
 
@@ -186,18 +190,14 @@ impl Wfc<usize, u32> for Sudoku {
         res.into_iter().collect()
     }
 
-    fn get_cell_state(&self, id: &usize) -> CellState<u32> {
-        self.cells[*id].state()
-    }
-
-    fn cell_collapse(&mut self, id: &usize, value: Option<u32>) -> u32 {
+    fn cell_collapse(&mut self, id: &usize, value: Option<u32>) -> Result<u32, WfcError> {
         self.cells
             .get_mut(*id)
             .expect("Failed to get cell")
             .collapse(value)
     }
 
-    fn cell_constrain(&mut self, id: &usize, value: &u32) {
+    fn cell_constrain(&mut self, id: &usize, value: &u32) -> Result<(), WfcError> {
         self.cells
             .get_mut(*id)
             .expect("Failed to get cell")
@@ -211,7 +211,8 @@ impl From<&str> for Sudoku {
         for (i, c) in s.chars().enumerate() {
             let c = c.to_digit(10).expect("Failed to parse char");
             if c != 0 {
-                res.collapse_and_propagate(&i, Some(c));
+                res.collapse_and_propagate(&i, Some(c))
+                    .expect("Failed to collapse to initial state");
             }
         }
         res
@@ -271,13 +272,13 @@ fn main() {
         }
 
         let mut sudoku = Sudoku::from(puzzle);
-        sudoku.collapse_all();
+        sudoku.collapse_all().expect("ASDF");
         let my_solution = sudoku.solution();
 
         if solution.contains('?') {
             // TODO: Retry
         }
-        
+
         if solution != my_solution {
             total_failed += 1;
             println!("{},{}", puzzle, solution);
