@@ -51,7 +51,10 @@ impl Cell<u32> for SudokuCell {
                     .next()
                     .ok_or_else(|| format!("Value to collapse with is not in superposition"))?
                     .clone(),
-                None => s.choose(&mut rand::thread_rng()).unwrap().clone(),
+                None => s
+                    .choose(&mut rand::thread_rng())
+                    .ok_or("Failed to find random superposition")?
+                    .clone(),
             },
         };
         *self = Self::Value(value);
@@ -193,14 +196,14 @@ impl Wfc<usize, u32> for Sudoku {
     fn cell_collapse(&mut self, id: &usize, value: Option<u32>) -> Result<u32, WfcError> {
         self.cells
             .get_mut(*id)
-            .expect("Failed to get cell")
+            .ok_or("Failed to get cell")?
             .collapse(value)
     }
 
     fn cell_constrain(&mut self, id: &usize, value: &u32) -> Result<(), WfcError> {
         self.cells
             .get_mut(*id)
-            .expect("Failed to get cell")
+            .ok_or("Failed to get cell")?
             .constrain(value)
     }
 }
@@ -252,39 +255,41 @@ impl Display for Sudoku {
     }
 }
 
-fn main() {
-    let mut total_processed = 1;
-    let mut total_failed = 0;
+fn solve(puzzle: &str, solution: &str) -> Option<()> {
+    for _ in 0..1000 {
+        let mut sudoku = Sudoku::from(puzzle);
 
+        if let Err(_) = sudoku.collapse_all() {
+            continue;
+        }
+
+        let my_solution = sudoku.solution();
+        if solution.contains('?') {
+            continue;
+        }
+
+        if solution == my_solution {
+            return Some(());
+        }
+    }
+    None
+}
+
+fn main() {
     for line in std::io::stdin().lines() {
-        let line = line.unwrap();
+        let line = line.expect("Failed to read line from stdin");
         let mut line = line.split(",");
 
-        let puzzle = line.next().unwrap();
-        let solution = line.next().unwrap();
-
-        if total_processed % 10000 == 0 {
-            // eprintln!("On puzzle {}/{}", total_processed, total_failed);
-        }
+        let puzzle = line.next().expect("Failed to get puzzle from csv");
+        let solution = line.next().expect("Failed to get solution from csv");
 
         if puzzle == "quizzes" {
             continue;
         }
 
-        let mut sudoku = Sudoku::from(puzzle);
-        sudoku.collapse_all().expect("ASDF");
-        let my_solution = sudoku.solution();
-
-        if solution.contains('?') {
-            // TODO: Retry
-        }
-
-        if solution != my_solution {
-            total_failed += 1;
+        if let Some(_) = solve(&puzzle, &solution) {
+        } else {
             println!("{},{}", puzzle, solution);
-            // eprintln!("{}", sudoku);
         }
-
-        total_processed += 1;
     }
 }

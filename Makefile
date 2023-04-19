@@ -1,18 +1,27 @@
 BIN:=target/release/sudoku
-
 SOURCES = $(wildcard src/*) Cargo.toml
+
+PUZZLES=sudoku.csv
+FAILURES=failures.csv
 
 $(BIN): $(SOURCES)
 	cargo build -r
 
-.PHONY: run-one
-run-one: $(BIN)
-	head -2 sudoku.csv | parallel --pipe -N1000 $(BIN) | tee failures.csv
+$(PUZZLES):
+	echo "Download ${PUZZLES} from https://www.kaggle.com/datasets/bryanpark/sudoku"
+	exit 1
+
+failures.csv:
+	$(MAKE) run-all
 
 .PHONY: run
-run: $(BIN)
-	cat sudoku.csv | parallel --pipe -N1000 $(BIN) | tee failures.csv
+run: $(BIN) $(PUZZLES)
+	cat ${PUZZLES} | parallel --pipe -N1000 ${BIN} | tee ${FAILURES}
 
-.PHONY: failures
-failures: $(BIN)
-	cat failures.csv | parallel --pipe -N1000 $(BIN)
+.PHONY: run-one
+run-one: $(BIN) $(PUZZLES)
+	head -2 ${PUZZLES} | ${BIN}
+
+.PHONY: run-failures
+run-failures: $(BIN) $(FAILURES)
+	cat ${FAILURES} | ${BIN}

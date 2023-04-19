@@ -1,5 +1,3 @@
-// Inspired by this video: https://www.youtube.com/watch?v=2SuvO4Gi7uY
-
 pub type WfcError = String;
 
 pub enum CellState<V> {
