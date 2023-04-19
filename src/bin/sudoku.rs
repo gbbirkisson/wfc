@@ -17,13 +17,6 @@ impl SudokuCell {
 }
 
 impl Cell<u32> for SudokuCell {
-    fn state(&self) -> CellState<u32> {
-        match self {
-            SudokuCell::Value(v) => CellState::Value(*v),
-            SudokuCell::Superpositions(s) => CellState::Entropy(s.len()),
-        }
-    }
-
     fn constrain(&mut self, value: &u32) -> Result<(), String> {
         match self {
             SudokuCell::Value(v) if v == value => Err(format!(
@@ -43,7 +36,7 @@ impl Cell<u32> for SudokuCell {
 
     fn collapse(&mut self, value: Option<u32>) -> Result<u32, String> {
         let value = match self {
-            SudokuCell::Value(_) => return Err("Called collapse on a collapsed cell".to_string()),
+            SudokuCell::Value(_) => return Err(format!("Called collapse on a collapsed cell")),
             SudokuCell::Superpositions(s) => match value {
                 Some(value) => s
                     .iter()
@@ -62,43 +55,6 @@ impl Cell<u32> for SudokuCell {
     }
 }
 
-#[inline]
-fn get_row_index(id: usize) -> usize {
-    (id as f32 / 9.0).floor() as usize
-}
-
-#[inline]
-fn get_column_index(id: usize) -> usize {
-    id % 9
-}
-
-#[inline]
-fn get_box_index(id: usize) -> usize {
-    //  0,  1,  2, |  3,  4,  5, |  6,  7,  8,
-    //  9, 10, 11, | 12, 13, 14, | 15, 16, 17,
-    // 18, 19, 20, | 21, 22, 23, | 24, 25, 26,
-    //
-    // 27, 28, 29, | 30, 31, 32, | 33, 34, 35,
-    // 36, 37, 38, | 39, 40, 41, | 42, 43, 44,
-    // 45, 46, 47, | 48, 49, 50, | 51, 52, 53,
-    //
-    // 54, 55, 56, | 57, 58, 59, | 60, 61, 62,
-    // 63, 64, 65, | 66, 67, 68, | 69, 70, 71,
-    // 72, 73, 74, | 75, 76, 77, | 78, 79, 80,
-    match id {
-        0 | 1 | 2 | 9 | 10 | 11 | 18 | 19 | 20 => 0,
-        3 | 4 | 5 | 12 | 13 | 14 | 21 | 22 | 23 => 1,
-        6 | 7 | 8 | 15 | 16 | 17 | 24 | 25 | 26 => 2,
-        27 | 28 | 29 | 36 | 37 | 38 | 45 | 46 | 47 => 3,
-        30 | 31 | 32 | 39 | 40 | 41 | 48 | 49 | 50 => 4,
-        33 | 34 | 35 | 42 | 43 | 44 | 51 | 52 | 53 => 5,
-        54 | 55 | 56 | 63 | 64 | 65 | 72 | 73 | 74 => 6,
-        57 | 58 | 59 | 66 | 67 | 68 | 75 | 76 | 77 => 7,
-        60 | 61 | 62 | 69 | 70 | 71 | 78 | 79 | 80 => 8,
-        _ => panic!("Index out of range"),
-    }
-}
-
 struct Sudoku {
     cells: Vec<SudokuCell>,
     neighbour_rows: Vec<Vec<usize>>,
@@ -112,9 +68,9 @@ impl Sudoku {
         let mut neighbour_columns = vec![Vec::<usize>::new(); 9];
         let mut neighbour_boxes = vec![Vec::<usize>::new(); 9];
         for id in 0..81 {
-            neighbour_rows[get_row_index(id)].push(id);
-            neighbour_columns[get_column_index(id)].push(id);
-            neighbour_boxes[get_box_index(id)].push(id);
+            neighbour_rows[Self::get_row_index(id)].push(id);
+            neighbour_columns[Self::get_column_index(id)].push(id);
+            neighbour_boxes[Self::get_box_index(id)].push(id);
         }
 
         Self {
@@ -125,64 +81,87 @@ impl Sudoku {
         }
     }
 
+
+    #[inline(always)]
+    fn get_row_index(id: usize) -> usize {
+        (id as f32 / 9.0).floor() as usize
+    }
+
+    #[inline(always)]
+    fn get_column_index(id: usize) -> usize {
+        id % 9
+    }
+
+    #[inline(always)]
+    fn get_box_index(id: usize) -> usize {
+        // We map each box manually
+        //  0,  1,  2, |  3,  4,  5, |  6,  7,  8,
+        //  9, 10, 11, | 12, 13, 14, | 15, 16, 17,
+        // 18, 19, 20, | 21, 22, 23, | 24, 25, 26,
+        //
+        // 27, 28, 29, | 30, 31, 32, | 33, 34, 35,
+        // 36, 37, 38, | 39, 40, 41, | 42, 43, 44,
+        // 45, 46, 47, | 48, 49, 50, | 51, 52, 53,
+        //
+        // 54, 55, 56, | 57, 58, 59, | 60, 61, 62,
+        // 63, 64, 65, | 66, 67, 68, | 69, 70, 71,
+        // 72, 73, 74, | 75, 76, 77, | 78, 79, 80,
+        match id {
+            0 | 1 | 2 | 9 | 10 | 11 | 18 | 19 | 20 => 0,
+            3 | 4 | 5 | 12 | 13 | 14 | 21 | 22 | 23 => 1,
+            6 | 7 | 8 | 15 | 16 | 17 | 24 | 25 | 26 => 2,
+            27 | 28 | 29 | 36 | 37 | 38 | 45 | 46 | 47 => 3,
+            30 | 31 | 32 | 39 | 40 | 41 | 48 | 49 | 50 => 4,
+            33 | 34 | 35 | 42 | 43 | 44 | 51 | 52 | 53 => 5,
+            54 | 55 | 56 | 63 | 64 | 65 | 72 | 73 | 74 => 6,
+            57 | 58 | 59 | 66 | 67 | 68 | 75 | 76 | 77 => 7,
+            60 | 61 | 62 | 69 | 70 | 71 | 78 | 79 | 80 => 8,
+            _ => panic!("Index out of range"),
+        }
+    }
+
     fn solution(&self) -> String {
-        let mut res = String::with_capacity(81);
+        let mut solution = String::with_capacity(81);
         for c in self.cells.iter() {
             match c {
-                SudokuCell::Value(v) => res.push_str(&format!("{}", v)),
-                SudokuCell::Superpositions(_) => res.push('?'),
+                SudokuCell::Value(v) => solution.push_str(&format!("{}", v)),
+                SudokuCell::Superpositions(_) => solution.push('?'),
             }
         }
-        res
+        solution
     }
 }
 
-impl Wfc<usize, u32> for Sudoku {
-    fn get_cell_with_lowest_entropy(&self) -> Option<(usize, usize)> {
-        let mut cells_with_entropy: Vec<(usize, usize)> = self
-            .cells
+impl WaveFunctionCollapse<usize, u32> for Sudoku {
+    fn cells_to_collapse(&self) -> Vec<(usize, Entropy)> {
+        self.cells
             .iter()
             .enumerate()
-            .filter(|(_, c)| match c.state() {
-                CellState::Entropy(_) => true,
-                CellState::Value(_) => false,
+            .filter(|(_, c)| match c {
+                SudokuCell::Superpositions(_) => true,
+                SudokuCell::Value(_) => false,
             })
-            .map(|(i, c)| match c.state() {
-                CellState::Entropy(e) => (i, e),
-                CellState::Value(_) => panic!("This should not happen"),
+            .map(|(i, c)| match c {
+                SudokuCell::Superpositions(s) => (i, s.len()),
+                SudokuCell::Value(_) => panic!("This should not happen"),
             })
-            .collect();
-
-        cells_with_entropy.sort_by(|(_, e1), (_, e2)| e1.cmp(e2));
-
-        let lowest_entropy = cells_with_entropy.iter().next().map(|(_, e)| e).cloned();
-
-        let result = if let Some(lowest_entropy) = lowest_entropy {
-            cells_with_entropy = cells_with_entropy
-                .into_iter()
-                .filter(|(_, e)| e == &lowest_entropy)
-                .collect();
-            cells_with_entropy.choose(&mut rand::thread_rng())
-        } else {
-            None
-        };
-        result.copied()
+            .collect()
     }
 
-    fn get_cell_neighbours(&self, id: &usize) -> Vec<&usize> {
+    fn cell_neighbours(&self, id: &usize) -> Vec<&usize> {
         let rows = self
             .neighbour_rows
-            .get(get_row_index(*id))
+            .get(Self::get_row_index(*id))
             .expect("Failed to get neighbour rows")
             .iter();
         let columns = self
             .neighbour_columns
-            .get(get_column_index(*id))
+            .get(Self::get_column_index(*id))
             .expect("Failed to get neighbour columns")
             .iter();
         let boxes = self
             .neighbour_boxes
-            .get(get_box_index(*id)) // ???
+            .get(Self::get_box_index(*id))
             .expect("Failed to get neighbour boxes")
             .iter();
         let res: HashSet<&usize> = rows
@@ -193,14 +172,14 @@ impl Wfc<usize, u32> for Sudoku {
         res.into_iter().collect()
     }
 
-    fn cell_collapse(&mut self, id: &usize, value: Option<u32>) -> Result<u32, WfcError> {
+    fn cell_collapse(&mut self, id: &usize, value: Option<u32>) -> Result<u32, Error> {
         self.cells
             .get_mut(*id)
             .ok_or("Failed to get cell")?
             .collapse(value)
     }
 
-    fn cell_constrain(&mut self, id: &usize, value: &u32) -> Result<(), WfcError> {
+    fn cell_constrain(&mut self, id: &usize, value: &u32) -> Result<(), Error> {
         self.cells
             .get_mut(*id)
             .ok_or("Failed to get cell")?
@@ -210,15 +189,16 @@ impl Wfc<usize, u32> for Sudoku {
 
 impl From<&str> for Sudoku {
     fn from(s: &str) -> Self {
-        let mut res = Self::new();
+        let mut sudoku = Self::new();
         for (i, c) in s.chars().enumerate() {
             let c = c.to_digit(10).expect("Failed to parse char");
             if c != 0 {
-                res.collapse_and_propagate(&i, Some(c))
-                    .expect("Failed to collapse to initial state");
+                sudoku
+                    .collapse_one(&i, Some(c))
+                    .expect("Failed to set initial state");
             }
         }
-        res
+        sudoku
     }
 }
 
@@ -242,10 +222,10 @@ impl Display for Sudoku {
                     }
                 }
             }
-            let value = match c.state() {
-                CellState::Entropy(entropy) if entropy == 0 => "X".to_string(),
-                CellState::Entropy(_) => "?".to_string(),
-                CellState::Value(v) => format!("{}", v),
+            let value = match c {
+                SudokuCell::Superpositions(s) if s.len() == 0 => format!("X"),
+                SudokuCell::Superpositions(_) => format!("?"),
+                SudokuCell::Value(v) => format!("{}", v),
             };
             write!(f, "{} ", value)?;
         }
@@ -255,41 +235,45 @@ impl Display for Sudoku {
     }
 }
 
-fn solve(puzzle: &str, solution: &str) -> Option<()> {
+fn find_solution(puzzle: &str, solution: &str) -> Option<String> {
+    // Solver is somewhat based on randomness, so we will retry a 1000 times to solve the hardest
+    // puzzles.
     for _ in 0..1000 {
         let mut sudoku = Sudoku::from(puzzle);
 
         if let Err(_) = sudoku.collapse_all() {
+            // Retry
             continue;
         }
 
         let my_solution = sudoku.solution();
         if solution.contains('?') {
+            // Retry
             continue;
         }
 
         if solution == my_solution {
-            return Some(());
+            return Some(my_solution);
         }
     }
+
     None
 }
 
 fn main() {
     for line in std::io::stdin().lines() {
         let line = line.expect("Failed to read line from stdin");
-        let mut line = line.split(",");
-
-        let puzzle = line.next().expect("Failed to get puzzle from csv");
-        let solution = line.next().expect("Failed to get solution from csv");
-
-        if puzzle == "quizzes" {
+        // Ignoring column names in the csv
+        if line == "quizzes,solutions" {
             continue;
         }
 
-        if let Some(_) = solve(&puzzle, &solution) {
-        } else {
-            println!("{},{}", puzzle, solution);
+        let mut line = line.split(",");
+        let sudoku = line.next().expect("Failed to get puzzle from csv");
+        let solution = line.next().expect("Failed to get solution from csv");
+
+        if find_solution(&sudoku, &solution).is_none() {
+            println!("{},{}", sudoku, solution);
         }
     }
 }
