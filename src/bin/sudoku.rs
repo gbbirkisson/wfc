@@ -81,7 +81,6 @@ impl Sudoku {
         }
     }
 
-
     #[inline(always)]
     fn get_row_index(id: usize) -> usize {
         (id as f32 / 9.0).floor() as usize
